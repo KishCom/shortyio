@@ -43,6 +43,11 @@ struct LinkResponse {
     original_url: String,
 }
 
+#[derive(Deserialize, Clone, Debug)]
+struct Domain {
+    hostname: String,
+}
+
 struct Config {
     api_key: String,
     domain: String,
@@ -115,6 +120,8 @@ struct ShortyApp {
     error: Option<String>,
     loading: bool,
     show_settings: bool,
+    domains: Vec<Domain>,
+    domains_loading: bool,
 }
 
 impl Default for ShortyApp {
@@ -143,6 +150,8 @@ impl Default for ShortyApp {
             error: None,
             loading: false,
             show_settings: false,
+            domains: Vec::new(),
+            domains_loading: false,
         }
     }
 }
@@ -256,6 +265,65 @@ impl ShortyApp {
             });
         });
     }
+
+    fn fetch_domains(&mut self, ctx: egui::Context) {
+        if self.api_key.is_empty() {
+            return;
+        }
+
+        let api_key = self.api_key.clone();
+        self.domains_loading = true;
+
+        std::thread::spawn(move || {
+            let runtime = tokio::runtime::Runtime::new().unwrap();
+            runtime.block_on(async {
+                let client = reqwest::Client::new();
+                let response = client
+                    .get("https://api.short.io/api/domains?limit=100&offset=0")
+                    .header("Authorization", api_key)
+                    .header("accept", "application/json")
+                    .send()
+                    .await;
+
+                ctx.request_repaint();
+
+                match response {
+                    Ok(resp) => {
+                        if resp.status().is_success() {
+                            match resp.json::<Vec<Domain>>().await {
+                                Ok(domains) => {
+                                    ctx.data_mut(|data| {
+                                        data.insert_temp(egui::Id::new("domains"), domains);
+                                        data.insert_temp(egui::Id::new("domains_loading"), false);
+                                    });
+                                }
+                                Err(e) => {
+                                    eprintln!("Failed to parse domains: {}", e);
+                                    ctx.data_mut(|data| {
+                                        data.insert_temp(egui::Id::new("domains"), Vec::<Domain>::new());
+                                        data.insert_temp(egui::Id::new("domains_loading"), false);
+                                    });
+                                }
+                            }
+                        } else {
+                            eprintln!("API error fetching domains: {}", resp.status());
+                            ctx.data_mut(|data| {
+                                data.insert_temp(egui::Id::new("domains"), Vec::<Domain>::new());
+                                data.insert_temp(egui::Id::new("domains_loading"), false);
+                            });
+                        }
+                    }
+                    Err(e) => {
+                        eprintln!("Failed to fetch domains: {}", e);
+                        ctx.data_mut(|data| {
+                            data.insert_temp(egui::Id::new("domains"), Vec::<Domain>::new());
+                            data.insert_temp(egui::Id::new("domains_loading"), false);
+                        });
+                    }
+                }
+            });
+        });
+    }
 }
 
 impl eframe::App for ShortyApp {
@@ -273,6 +341,14 @@ impl eframe::App for ShortyApp {
                 self.loading = loading;
                 data.remove::<bool>(egui::Id::new("loading"));
             }
+            if let Some(domains) = data.get_temp::<Vec<Domain>>(egui::Id::new("domains")) {
+                self.domains = domains;
+                data.remove::<Vec<Domain>>(egui::Id::new("domains"));
+            }
+            if let Some(domains_loading) = data.get_temp::<bool>(egui::Id::new("domains_loading")) {
+                self.domains_loading = domains_loading;
+                data.remove::<bool>(egui::Id::new("domains_loading"));
+            }
         });
 
         if ctx.input(|i| i.key_pressed(egui::Key::Escape)) {
@@ -280,6 +356,11 @@ impl eframe::App for ShortyApp {
         }
 
         if self.show_settings {
+            // Fetch domains if we haven't yet and API key is set
+            if self.domains.is_empty() && !self.domains_loading && !self.api_key.is_empty() {
+                self.fetch_domains(ctx.clone());
+            }
+
             egui::Window::new("⚙ Settings")
                 .collapsible(false)
                 .resizable(false)
@@ -288,18 +369,50 @@ impl eframe::App for ShortyApp {
                     ui.set_min_width(400.0);
 
                     ui.label("API Key:");
-                    ui.add(
+                    let api_key_changed = ui.add(
                         egui::TextEdit::singleline(&mut self.api_key)
                             .password(true)
                             .hint_text("Enter your short.io API key"),
-                    );
+                    ).changed();
+
+                    // If API key changed, fetch domains
+                    if api_key_changed && !self.api_key.is_empty() {
+                        self.fetch_domains(ctx.clone());
+                    }
+
                     ui.add_space(8.0);
 
-                    ui.label("Domain (optional):");
-                    ui.add(
-                        egui::TextEdit::singleline(&mut self.domain)
-                            .hint_text("e.g., yourdomain.com"),
-                    );
+                    ui.label("Domain:");
+                    if self.domains_loading {
+                        ui.horizontal(|ui| {
+                            ui.spinner();
+                            ui.label("Loading domains...");
+                        });
+                    } else if !self.domains.is_empty() {
+                        let mut selected_label = if self.domain.is_empty() {
+                            "No custom domain".to_string()
+                        } else {
+                            self.domain.clone()
+                        };
+
+                        egui::ComboBox::from_id_salt("domain_selector")
+                            .selected_text(&selected_label)
+                            .show_ui(ui, |ui| {
+                                if ui.selectable_value(&mut selected_label, "No custom domain".to_string(), "No custom domain").clicked() {
+                                    self.domain = String::new();
+                                }
+                                for domain in &self.domains {
+                                    if ui.selectable_value(&mut selected_label, domain.hostname.clone(), &domain.hostname).clicked() {
+                                        self.domain = domain.hostname.clone();
+                                    }
+                                }
+                            });
+                    } else {
+                        ui.add(
+                            egui::TextEdit::singleline(&mut self.domain)
+                                .hint_text("Enter API key to load domains"),
+                        );
+                    }
                     ui.add_space(12.0);
 
                     ui.horizontal(|ui| {
