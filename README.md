@@ -66,8 +66,8 @@ The config file stores:
 
 Wayland support is enabled by default. It relies on the data-control protocol extension(s), which are not supported by all Wayland compositors. You can check compositor support on wayland.app:
 
-    [ext-data-control-v1](https://wayland.app/protocols/ext-data-control-v1)
-    [wlr-data-control-unstable-v1](https://wayland.app/protocols/wlr-data-control-unstable-v1)
+- [ext-data-control-v1](https://wayland.app/protocols/ext-data-control-v1)
+- [wlr-data-control-unstable-v1](https://wayland.app/protocols/wlr-data-control-unstable-v1)
 
 If you or a user's desktop doesn't support these protocols, shortyio won't be able to automatically pick up the URL on a clipboard in a pure Wayland environment. It is recommended to enable XWayland for these cases. If your're running shortyio inside an isolated sandbox, such as Flatpak or Snap, you'll need to expose the X11 socket to the application in addition to the Wayland communication interface.
 
