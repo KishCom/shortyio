@@ -14,6 +14,23 @@ struct CreateLinkRequest {
     path: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     domain: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    cloaking: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    password: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(rename = "passwordContact")]
+    password_contact: Option<bool>,
+    #[serde(rename = "allowDuplicates")]
+    allow_duplicates: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(rename = "clicksLimit")]
+    clicks_limit: Option<i32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(rename = "redirectType")]
+    redirect_type: Option<i32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    tags: Option<Vec<String>>,
 }
 
 #[derive(Deserialize, Clone)]
@@ -87,20 +104,25 @@ struct ShortyApp {
     domain: String,
     original_url: String,
     custom_path: String,
+    cloaking: bool,
+    password: String,
+    password_contact: bool,
+    clicks_limit: String,
+    redirect_type: i32,
     result: Option<LinkResponse>,
     error: Option<String>,
     loading: bool,
+    show_settings: bool,
 }
 
 impl Default for ShortyApp {
     fn default() -> Self {
         let config = Config::load();
-        println!("Starting up...");
+
         let original_url = Clipboard::new()
             .ok()
             .and_then(|mut clipboard| clipboard.get_text().ok())
             .filter(|text| {
-                println!("{:?}", text);
                 text.starts_with("http://") || text.starts_with("https://")
             })
             .unwrap_or_default();
@@ -110,9 +132,15 @@ impl Default for ShortyApp {
             domain: config.as_ref().map(|c| c.domain.clone()).unwrap_or_default(),
             original_url,
             custom_path: String::new(),
+            cloaking: false,
+            password: String::new(),
+            password_contact: false,
+            clicks_limit: String::new(),
+            redirect_type: 301,
             result: None,
             error: None,
             loading: false,
+            show_settings: false,
         }
     }
 }
@@ -120,7 +148,7 @@ impl Default for ShortyApp {
 impl ShortyApp {
     fn create_short_link(&mut self, ctx: egui::Context) {
         if self.api_key.is_empty() {
-            self.error = Some("API key is required".to_string());
+            self.error = Some("API key is required. Click settings (⚙) to configure.".to_string());
             return;
         }
 
@@ -129,20 +157,19 @@ impl ShortyApp {
             return;
         }
 
-        let config = Config {
-            api_key: self.api_key.clone(),
-            domain: self.domain.clone(),
-        };
-        if let Err(e) = config.save() {
-            eprintln!("Failed to save config: {}", e);
-        }
-
         let api_key = self.api_key.clone();
         let domain = if self.domain.is_empty() {
             None
         } else {
             Some(self.domain.clone())
         };
+
+        let clicks_limit = if self.clicks_limit.is_empty() {
+            None
+        } else {
+            self.clicks_limit.parse::<i32>().ok()
+        };
+
         let request = CreateLinkRequest {
             original_url: self.original_url.clone(),
             path: if self.custom_path.is_empty() {
@@ -151,6 +178,17 @@ impl ShortyApp {
                 Some(self.custom_path.clone())
             },
             domain,
+            cloaking: if self.cloaking { Some(true) } else { None },
+            password: if self.password.is_empty() {
+                None
+            } else {
+                Some(self.password.clone())
+            },
+            password_contact: if self.password_contact { Some(true) } else { None },
+            allow_duplicates: false,
+            clicks_limit,
+            redirect_type: Some(self.redirect_type),
+            tags: Some(vec!["shortyio".to_string()]),
         };
 
         self.loading = true;
@@ -235,92 +273,199 @@ impl eframe::App for ShortyApp {
             }
         });
 
+        if ctx.input(|i| i.key_pressed(egui::Key::Escape)) {
+            ctx.send_viewport_cmd(egui::ViewportCommand::Close);
+        }
+
+        if self.show_settings {
+            egui::Window::new("⚙ Settings")
+                .collapsible(false)
+                .resizable(false)
+                .anchor(egui::Align2::CENTER_CENTER, [0.0, 0.0])
+                .show(ctx, |ui| {
+                    ui.set_min_width(400.0);
+
+                    ui.label("API Key:");
+                    ui.add(
+                        egui::TextEdit::singleline(&mut self.api_key)
+                            .password(true)
+                            .hint_text("Enter your short.io API key"),
+                    );
+                    ui.add_space(8.0);
+
+                    ui.label("Domain (optional):");
+                    ui.add(
+                        egui::TextEdit::singleline(&mut self.domain)
+                            .hint_text("e.g., yourdomain.com"),
+                    );
+                    ui.add_space(12.0);
+
+                    ui.horizontal(|ui| {
+                        if ui.button("Save").clicked() {
+                            let config = Config {
+                                api_key: self.api_key.clone(),
+                                domain: self.domain.clone(),
+                            };
+                            if let Err(e) = config.save() {
+                                eprintln!("Failed to save config: {}", e);
+                            }
+                            self.show_settings = false;
+                        }
+                        if ui.button("Cancel").clicked() {
+                            self.show_settings = false;
+                        }
+                    });
+                });
+        }
+
         egui::CentralPanel::default().show(ctx, |ui| {
-            ui.heading("Shortyio the Short.io URL Shortener");
-            ui.add_space(10.0);
-
-            ui.horizontal(|ui| {
-                ui.label("API Key:");
-                ui.add(
-                    egui::TextEdit::singleline(&mut self.api_key)
-                        .password(true)
-                        .desired_width(300.0),
-                );
+            ui.vertical_centered(|ui| {
+                ui.add_space(16.0);
+                ui.heading(egui::RichText::new("Shortyio").size(28.0).strong());
+                ui.label(egui::RichText::new("Lightning-fast custom URL shortening").size(12.0).weak());
             });
 
-            ui.horizontal(|ui| {
-                ui.label("Domain (optional):");
-                ui.add(egui::TextEdit::singleline(&mut self.domain).desired_width(300.0));
-            });
+            ui.add_space(20.0);
 
-            ui.add_space(10.0);
-            ui.separator();
-            ui.add_space(10.0);
+            ui.group(|ui| {
+                ui.set_min_width(ui.available_width());
+                ui.add_space(8.0);
 
-            ui.horizontal(|ui| {
-                ui.label("Original URL:");
-                let response = ui.add(
+                ui.horizontal(|ui| {
+                    ui.label(egui::RichText::new("URL").strong());
+                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                        if ui.button("⚙").on_hover_text("Settings").clicked() {
+                            self.show_settings = true;
+                        }
+                    });
+                });
+
+                let url_response = ui.add(
                     egui::TextEdit::singleline(&mut self.original_url)
-                        .hint_text("https://example.com")
-                        .desired_width(300.0),
+                        .hint_text("https://example.com/your-long-url")
+                        .desired_width(f32::INFINITY),
                 );
-                if response.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter)) {
+                if url_response.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter)) {
                     self.create_short_link(ctx.clone());
                 }
-            });
 
-            ui.horizontal(|ui| {
-                ui.label("Custom Path:");
-                let response = ui.add(
+                ui.add_space(8.0);
+                ui.label(egui::RichText::new("Custom Path (optional)").strong());
+                let path_response = ui.add(
                     egui::TextEdit::singleline(&mut self.custom_path)
-                        .hint_text("my-custom-link (optional)")
-                        .desired_width(300.0),
+                        .hint_text("my-custom-link")
+                        .desired_width(f32::INFINITY),
                 );
-                if response.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter)) {
+                if path_response.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter)) {
                     self.create_short_link(ctx.clone());
                 }
+
+                ui.add_space(8.0);
+
+                ui.collapsing(egui::RichText::new("Advanced Options").strong(), |ui| {
+                    ui.add_space(4.0);
+
+                    ui.checkbox(&mut self.cloaking, "Enable cloaking")
+                        .on_hover_text("Hide the redirect in an iframe");
+
+                    ui.add_space(4.0);
+                    ui.label("Password (optional):");
+                    ui.add(
+                        egui::TextEdit::singleline(&mut self.password)
+                            .password(true)
+                            .hint_text("Protect link with password"),
+                    );
+
+                    ui.checkbox(&mut self.password_contact, "Show contact for password")
+                        .on_hover_text("Provide email to users to get password");
+
+                    ui.add_space(4.0);
+                    ui.label("Clicks Limit (optional):");
+                    ui.add(
+                        egui::TextEdit::singleline(&mut self.clicks_limit)
+                            .hint_text("e.g., 100")
+                            .desired_width(100.0),
+                    ).on_hover_text("Disable link after this many clicks");
+
+                    ui.add_space(4.0);
+                    ui.label("Redirect Type:");
+                    ui.horizontal(|ui| {
+                        ui.radio_value(&mut self.redirect_type, 301, "301 (Permanent)");
+                        ui.radio_value(&mut self.redirect_type, 302, "302 (Temporary)");
+                    });
+                    ui.horizontal(|ui| {
+                        ui.radio_value(&mut self.redirect_type, 307, "307 (Temporary)");
+                        ui.radio_value(&mut self.redirect_type, 308, "308 (Permanent)");
+                    });
+                });
+
+                ui.add_space(12.0);
+
+                ui.vertical_centered(|ui| {
+                    let button = egui::Button::new(
+                        egui::RichText::new("✨ Create Short Link").size(16.0)
+                    ).min_size(egui::vec2(200.0, 36.0));
+
+                    if ui.add_enabled(!self.loading, button).clicked() {
+                        self.create_short_link(ctx.clone());
+                    }
+                });
+
+                ui.add_space(8.0);
             });
 
-            ui.add_space(10.0);
-
-            if ui
-                .add_enabled(!self.loading, egui::Button::new("Create Short Link"))
-                .clicked()
-            {
-                self.create_short_link(ctx.clone());
-            }
+            ui.add_space(8.0);
 
             if self.loading {
-                ui.add_space(10.0);
-                ui.spinner();
-                ui.label("Creating short link...");
+                ui.vertical_centered(|ui| {
+                    ui.spinner();
+                    ui.label("Creating short link...");
+                });
             }
 
             if let Some(error) = &self.error {
-                ui.add_space(10.0);
-                ui.colored_label(egui::Color32::RED, format!("Error: {}", error));
+                ui.add_space(8.0);
+                ui.group(|ui| {
+                    ui.set_min_width(ui.available_width());
+                    ui.colored_label(egui::Color32::from_rgb(220, 60, 60), format!("❌ {}", error));
+                });
             }
 
             if let Some(result) = &self.result {
-                ui.add_space(10.0);
-                ui.separator();
-                ui.add_space(10.0);
-                ui.colored_label(egui::Color32::GREEN, "Success!");
-                ui.horizontal(|ui| {
-                    ui.label("Short URL:");
-                    ui.add(
-                        egui::TextEdit::singleline(&mut result.short_url.as_str())
-                            .desired_width(300.0),
-                    );
-                    if ui.button("Copy").clicked() {
-                        ui.output_mut(|o| o.copied_text = result.short_url.clone());
-                    }
-                });
-                ui.horizontal(|ui| {
-                    ui.label("Original:");
-                    ui.label(&result.original_url);
+                ui.add_space(8.0);
+                ui.group(|ui| {
+                    ui.set_min_width(ui.available_width());
+                    ui.add_space(4.0);
+
+                    ui.colored_label(egui::Color32::from_rgb(60, 179, 113),
+                        egui::RichText::new("✅ Success!").size(14.0).strong());
+
+                    ui.add_space(8.0);
+                    ui.horizontal(|ui| {
+                        ui.label(egui::RichText::new("Short URL:").strong());
+                        ui.add(
+                            egui::TextEdit::singleline(&mut result.short_url.as_str())
+                                .desired_width(ui.available_width() - 70.0),
+                        );
+                        if ui.button("📋 Copy").clicked() {
+                            ui.output_mut(|o| o.copied_text = result.short_url.clone());
+                        }
+                    });
+
+                    ui.add_space(4.0);
+                    ui.horizontal(|ui| {
+                        ui.label(egui::RichText::new("Original:").weak().size(11.0));
+                        ui.label(egui::RichText::new(&result.original_url).weak().size(11.0));
+                    });
+
+                    ui.add_space(4.0);
                 });
             }
+
+            ui.add_space(8.0);
+            ui.vertical_centered(|ui| {
+                ui.label(egui::RichText::new("Press ESC to exit").size(10.0).weak());
+            });
         });
     }
 }
@@ -328,13 +473,14 @@ impl eframe::App for ShortyApp {
 fn main() -> Result<(), eframe::Error> {
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
-            .with_inner_size([500.0, 350.0])
-            .with_resizable(false),
+            .with_inner_size([500.0, 520.0])
+            .with_resizable(true)
+            .with_min_inner_size([480.0, 400.0]),
         ..Default::default()
     };
 
     eframe::run_native(
-        "Shortyio",
+        "Shorty",
         options,
         Box::new(|_cc| Ok(Box::new(ShortyApp::default()))),
     )
