@@ -32,13 +32,13 @@ jobs:
             os: macOS-latest
             target: x86_64-apple-darwin
             bin: shortyio
-            name: shortyio-Darwin-x86_64.tar.gz
+            name: shortyio-Darwin-x86_64.zip
 
           - os_name: macOS-aarch64
             os: macOS-latest
             target: aarch64-apple-darwin
             bin: shortyio
-            name: shortyio-Darwin-aarch64.tar.gz
+            name: shortyio-Darwin-aarch64.zip
 
     steps:
       - name: Checkout
@@ -74,9 +74,9 @@ jobs:
       - name: Package (macOS)
         if: matrix.platform.os == 'macOS-latest'
         run: |
-          cd target/${{ matrix.platform.target }}/release
-          tar czvf ../../../${{ matrix.platform.name }} ${{ matrix.platform.bin }}
-          cd -
+          chmod +x build-macos-app.sh
+          ./build-macos-app.sh ${{ matrix.platform.target }}
+          ditto -c -k --keepParent Shorty.app ${{ matrix.platform.name }}
 
       - name: Package (Windows)
         if: matrix.platform.os == 'windows-latest'

@@ -55,7 +55,7 @@ struct Config {
 
 impl Config {
     fn config_path() -> Option<PathBuf> {
-        ProjectDirs::from("com", "shortyio", "shortyio")
+        ProjectDirs::from("systems", "weedmark", "shortyio")
             .map(|proj_dirs| proj_dirs.config_dir().join("config.json"))
     }
 
@@ -612,7 +612,7 @@ fn main() -> Result<(), eframe::Error> {
     };
 
     eframe::run_native(
-        "Shorty",
+        "Shortyio",
         options,
         Box::new(|_cc| Ok(Box::new(ShortyApp::default()))),
     )

@@ -17,6 +17,13 @@ A lightning-fast GUI application for creating short.io URLs with custom paths.
 
 Download the latest release for your platform from the [Releases](../../releases) page.
 
+#### macOS Installation
+
+1. Download `shortyio-Darwin-*.zip` for your architecture (x86_64 or aarch64/Apple Silicon)
+2. Extract the zip file
+3. Drag `Shorty.app` to your Applications folder
+4. Launch Shorty from Applications or Spotlight
+
 ### From Source
 
 ```bash
@@ -52,8 +59,8 @@ The fastest way to use Shorty:
 
 Configuration is stored in:
 - **Linux**: `~/.config/shortyio/config.json`
-- **macOS**: `~/Library/Application Support/com.shortyio.shortyio/config.json`
-- **Windows**: `%APPDATA%\shortyio\config.json`
+- **macOS**: `~/Library/Application Support/systems.weedmark.shortyio/config.json`
+- **Windows**: `%APPDATA%\weedmark\shortyio\config.json`
 
 The config file stores:
 - `api_key`: Your short.io API key
