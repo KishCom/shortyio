@@ -58,8 +58,21 @@ jobs:
       - name: Build binary
         run: cargo build --release --target ${{ matrix.platform.target }}
 
-      - name: Package (Linux/macOS)
-        if: matrix.platform.os != 'windows-latest'
+      - name: Package (Linux)
+        if: matrix.platform.os == 'ubuntu-latest'
+        run: |
+          mkdir -p package
+          cp target/${{ matrix.platform.target }}/release/${{ matrix.platform.bin }} package/
+          cp icon.png package/
+          cp systems.weedmark.shortyio.desktop package/
+          cp install-linux.sh package/
+          chmod +x package/install-linux.sh
+          cd package
+          tar czvf ../${{ matrix.platform.name }} *
+          cd ..
+
+      - name: Package (macOS)
+        if: matrix.platform.os == 'macOS-latest'
         run: |
           cd target/${{ matrix.platform.target }}/release
           tar czvf ../../../${{ matrix.platform.name }} ${{ matrix.platform.bin }}

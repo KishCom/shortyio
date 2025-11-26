@@ -23,6 +23,7 @@ Download the latest release for your platform from the [Releases](../../releases
 git clone https://github.com/KishCom/shortyio.git
 cd shortyio
 cargo build --release
+./install-linux.sh  # Optional, for icon support on Linux
 ```
 
 The binary will be at `target/release/shortyio`
@@ -62,7 +63,7 @@ The config file stores:
 
 - A [short.io](https://short.io) account and API key
 
-## Linux Wayland/X11 Note
+## Linux Wayland/X11 Notes
 
 Wayland support is enabled by default. It relies on the data-control protocol extension(s), which are not supported by all Wayland compositors. You can check compositor support on wayland.app:
 
@@ -70,6 +71,14 @@ Wayland support is enabled by default. It relies on the data-control protocol ex
 - [wlr-data-control-unstable-v1](https://wayland.app/protocols/wlr-data-control-unstable-v1)
 
 If you or a user's desktop doesn't support these protocols, shortyio won't be able to automatically pick up the URL on a clipboard in a pure Wayland environment. It is recommended to enable XWayland for these cases. If your're running shortyio inside an isolated sandbox, such as Flatpak or Snap, you'll need to expose the X11 socket to the application in addition to the Wayland communication interface.
+
+For better icon support on Wayland, and various desktops app menu integration, use the install script. This script merely installs the app to `~/.local/bin` (or `/usr/local/bin`), adds a desktop entry, and registers the app icon:
+
+```bash
+cd shortyio-Linux-x86_64
+chmod +x install-linux.sh
+./install-linux.sh
+```
 
 ## Building
 

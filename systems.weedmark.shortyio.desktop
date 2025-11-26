@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=Shortyio
+Comment=Lightning-fast URL shortening with Short.io
+Exec=shortyio
+Icon=systems.weedmark.shortyio
+Terminal=false
+Type=Application
+Categories=Utility;Network;
+Keywords=url;shortener;short;link;

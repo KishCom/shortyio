@@ -472,12 +472,29 @@ impl eframe::App for ShortyApp {
     }
 }
 
+fn load_icon() -> egui::IconData {
+    let icon_bytes = include_bytes!("../icon.png");
+    let image = image::load_from_memory(icon_bytes)
+        .expect("Failed to load icon")
+        .to_rgba8();
+    let (width, height) = image.dimensions();
+    egui::IconData {
+        rgba: image.into_raw(),
+        width,
+        height,
+    }
+}
+
 fn main() -> Result<(), eframe::Error> {
+    let icon = load_icon();
+
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
             .with_inner_size([500.0, 520.0])
             .with_resizable(true)
-            .with_min_inner_size([480.0, 400.0]),
+            .with_min_inner_size([480.0, 400.0])
+            .with_icon(icon)
+            .with_app_id("systems.weedmark.shortyio"),
         ..Default::default()
     };
 
