@@ -17,13 +17,6 @@ A lightning-fast GUI application for creating short.io URLs with custom paths.
 
 Download the latest release for your platform from the [Releases](../../releases) page.
 
-#### macOS Installation
-
-1. Download `shortyio-Darwin-*.zip` for your architecture (x86_64 or aarch64/Apple Silicon)
-2. Extract the zip file
-3. Drag `Shorty.app` to your Applications folder
-4. Launch Shorty from Applications or Spotlight
-
 ### From Source
 
 ```bash
@@ -44,6 +37,16 @@ The binary will be at `target/release/shortyio`
 5. Optionally add a custom path for your short link
 6. Press Enter or click "Create Short Link"
 7. Click "Copy" to copy the shortened URL to your clipboard
+
+#### macOS "Installation"
+
+1. Download `shortyio-Darwin-*.zip` for your architecture (Intel/x86_64 or Apple Silicon/aarch64)
+2. Extract the zip file
+3. Drag `Shorty.app` to your Applications folder
+4. **First launch**: Right-click `Shorty.app` → select "Open" → click "Open" in the dialog
+   - This is required because the app is not signed with an Apple Developer certificate
+   - After the first launch, you can open it normally
+5. Launch Shorty from Applications or Spotlight
 
 ## Workflow
 

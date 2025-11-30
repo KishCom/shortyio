@@ -65,6 +65,14 @@ echo -n "APPL????" > "${CONTENTS_DIR}/PkgInfo"
 # Make binary executable
 chmod +x "${MACOS_DIR}/${BINARY_NAME}"
 
+# Ad-hoc code signing (works without Apple Developer certificate)
+# This makes the app valid enough to run, but users will still need to right-click > Open first time
+if command -v codesign &> /dev/null; then
+    echo "Ad-hoc signing app..."
+    codesign --force --deep --sign - "${APP_DIR}"
+    echo "  ✓ Signed"
+fi
+
 echo "✓ ${APP_NAME}.app created successfully"
 echo "  Location: ${APP_DIR}"
 echo "  Version: ${VERSION}"
