@@ -30,11 +30,37 @@ mkdir -p "${RESOURCES_DIR}"
 # Copy binary
 cp "target/${TARGET}/release/${BINARY_NAME}" "${MACOS_DIR}/"
 
-# Copy icon (macOS supports PNG directly, no need to convert to ICNS)
-cp icon.png "${RESOURCES_DIR}/icon.icns"
+# Convert PNG to ICNS if sips is available (macOS tool)
+if command -v sips &> /dev/null && command -v iconutil &> /dev/null; then
+    echo "Creating ICNS icon..."
+    ICONSET="${RESOURCES_DIR}/icon.iconset"
+    mkdir -p "${ICONSET}"
+
+    # Generate different sizes for iconset
+    sips -z 16 16     icon.png --out "${ICONSET}/icon_16x16.png" &> /dev/null
+    sips -z 32 32     icon.png --out "${ICONSET}/icon_16x16@2x.png" &> /dev/null
+    sips -z 32 32     icon.png --out "${ICONSET}/icon_32x32.png" &> /dev/null
+    sips -z 64 64     icon.png --out "${ICONSET}/icon_32x32@2x.png" &> /dev/null
+    sips -z 128 128   icon.png --out "${ICONSET}/icon_128x128.png" &> /dev/null
+    sips -z 256 256   icon.png --out "${ICONSET}/icon_128x128@2x.png" &> /dev/null
+    sips -z 256 256   icon.png --out "${ICONSET}/icon_256x256.png" &> /dev/null
+    sips -z 512 512   icon.png --out "${ICONSET}/icon_256x256@2x.png" &> /dev/null
+    sips -z 512 512   icon.png --out "${ICONSET}/icon_512x512.png" &> /dev/null
+    cp icon.png "${ICONSET}/icon_512x512@2x.png"
+
+    # Convert to ICNS
+    iconutil -c icns "${ICONSET}" -o "${RESOURCES_DIR}/icon.icns"
+    rm -rf "${ICONSET}"
+    echo "  ✓ Icon created"
+else
+    echo "  Note: sips/iconutil not available, skipping icon (icon will be set by app at runtime)"
+fi
 
 # Create Info.plist
 sed "s/VERSION/${VERSION}/g" Info.plist.template > "${CONTENTS_DIR}/Info.plist"
+
+# Create PkgInfo file
+echo -n "APPL????" > "${CONTENTS_DIR}/PkgInfo"
 
 # Make binary executable
 chmod +x "${MACOS_DIR}/${BINARY_NAME}"
@@ -43,3 +69,4 @@ echo "✓ ${APP_NAME}.app created successfully"
 echo "  Location: ${APP_DIR}"
 echo "  Version: ${VERSION}"
 echo "  Target: ${TARGET}"
+echo "  Bundle ID: ${BUNDLE_ID}"
