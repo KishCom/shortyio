@@ -40,6 +40,8 @@ The binary will be at `target/release/shortyio`
 
 #### macOS "Installation"
 
+The "fix" for this is paying Papa Apple $100 a year to get a developer signing license from them. I will do this eventually, but not until I need to actually publish Apple apps.
+
 1. Download `shortyio-Darwin-*.zip` for your architecture (Intel/x86_64 or Apple Silicon/aarch64)
 2. Extract the zip file
 3. Drag `Shorty.app` to your Applications folder
